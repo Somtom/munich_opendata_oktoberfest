@@ -28,3 +28,29 @@ result <- content(raw.result)
 dt <- bind_rows(result$result$records)
 ```
 
+
+# Prepare data
+
+Let's take a quick view at our data:
+```{r}
+head(dt)
+```
+
+Our data have `r ncol(dt)` columns and `r nrow(dt)` rows. 
+As we see, the columns have german names.
+We will change this for all english speaking readers.
+
+```{r}
+dt <- dt %>% 
+  transmute(id = `_id`,
+            year = as.integer(jahr),
+            duration = as.integer(dauer),
+            beer_cons = as.integer(bier_konsum),
+            hendl_cons = as.integer(hendl_konsum),
+            beer_price = as.numeric(bier_preis),
+            hendl_price = as.numeric(hendl_preis),
+            visitors_total = as.numeric(besucher_gesamt),
+            visitors_day = as.integer(besucher_tag))
+```
+
+
