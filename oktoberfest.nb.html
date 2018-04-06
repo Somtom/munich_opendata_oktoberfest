@@ -199,13 +199,16 @@ $(document).ready(function () {
 <h1>Importing data from API</h1>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudXJsIDwtIFwiaHR0cHM6Ly93d3cub3Blbmdvdi1tdWVuY2hlbi5kZVwiXG5wYXRoIDwtIFwiYXBpL2FjdGlvbi9kYXRhc3RvcmVfc2VhcmNoP3Jlc291cmNlX2lkPWUwZjY2NGNmLTZkZDktNDc0My1iZDJiLTgxYThiMThiZDFkMlwiXG4jIGdldCByYXcgcmVzdWx0c1xucmF3LnJlc3VsdCA8LSBHRVQodXJsID0gdXJsLCBwYXRoID0gcGF0aClcbiMgY29udmVydCByYXcgcmVzdWx0cyB0byBsaXN0XG5yZXN1bHQgPC0gY29udGVudChyYXcucmVzdWx0KVxuIyBjb252ZXJ0IHJlc3VsdHMgdG8gdGFibGVcbmR0IDwtIGJpbmRfcm93cyhyZXN1bHQkcmVzdWx0JHJlY29yZHMpXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudXJsIDwtIFwiaHR0cHM6Ly93d3cub3Blbmdvdi1tdWVuY2hlbi5kZVwiXG5wYXRoIDwtIFwiYXBpL2FjdGlvbi9kYXRhc3RvcmVfc2VhcmNoP3Jlc291cmNlX2lkPWUwZjY2NGNmLTZkZDktNDc0My1iZDJiLTgxYThiMThiZDFkMlwiXG5cbiMgZ2V0IHJhdyByZXN1bHRzXG5yYXcucmVzdWx0IDwtIEdFVCh1cmwgPSB1cmwsIHBhdGggPSBwYXRoKVxuXG4jIGNvbnZlcnQgcmF3IHJlc3VsdHMgdG8gbGlzdFxucmVzdWx0IDwtIGNvbnRlbnQocmF3LnJlc3VsdClcblxuIyBjb252ZXJ0IHJlc3VsdHMgdG8gdGFibGVcbmR0IDwtIGJpbmRfcm93cyhyZXN1bHQkcmVzdWx0JHJlY29yZHMpXG5gYGAifQ== -->
 <pre class="r"><code>url &lt;- &quot;https://www.opengov-muenchen.de&quot;
 path &lt;- &quot;api/action/datastore_search?resource_id=e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2&quot;
+
 # get raw results
 raw.result &lt;- GET(url = url, path = path)
+
 # convert raw results to list
 result &lt;- content(raw.result)
+
 # convert results to table
 dt &lt;- bind_rows(result$result$records)</code></pre>
 <!-- rnb-source-end -->
