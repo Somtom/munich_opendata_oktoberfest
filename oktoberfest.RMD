@@ -36,7 +36,7 @@ Let's take a quick view at our data:
 head(dt)
 ```
 
-Our data have `r ncol(dt)` columns and `r nrow(dt)` rows. 
+
 As we see, the columns have german names.
 We will change this for all english speaking readers.
 
@@ -54,3 +54,67 @@ dt <- dt %>%
 ```
 
 
+# Data description
+
+Our data have `r ncol(dt)` columns and `r nrow(dt)` rows. 
+The data set contains yearly data from `r min(dt$year, na.rm = T)` to `r max(dt$year, na.rm = T)` on
+beer- and hendl (half chicken) consumption. It also provides information about the price of both as 
+well as total visitors, mean daily visitors and the duration.
+
+Variable          | Metric
+----------------- | ----------
+beer consumption  | Hektoliter
+beer price        | €/Liter (before 2002: DM/L)
+hendl consumption | ??? 1/2 chicken
+hendl price       | € (before 2002: DM)
+total visitors    | Million
+daily visitors    | Thousand
+  
+
+# Data munging
+
+
+```{r}
+# generate vector with years in which zlf festival took place 
+zlf_years <- c(seq(1810,1996, 3), seq(2000, max(dt$year),4))
+
+dt <- dt %>% 
+  mutate(zlf = factor(ifelse(year %in% zlf_years, 1, 0))) %>% 
+  select(-id) # remove is column
+```
+
+
+# Quick plots
+
+## Beer consumption vs. zlf
+```{r}
+dt %>% 
+  ggplot() +
+  geom_density(aes(x = beer_cons, fill = zlf), alpha = 0.4) 
+
+dt %>% 
+  ggplot() +
+  geom_boxplot(aes(x = zlf, y = beer_cons, fill = zlf), alpha = 0.4) 
+
+dt %>% 
+  ggplot() +
+  geom_col(aes(x =  year, y = beer_cons, fill = zlf)) 
+```
+
+## beer and hendl consumption per person
+
+```{r}
+dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = beer_cons/visitors_total/10000, fill = beer_price))
+
+
+dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = hendl_cons/visitors_total/1000000, fill = hendl_price))
+```
+
+
+# Ideas
+
+* Zusätzlicher Datensatz mit Zeltpreisen suchen
