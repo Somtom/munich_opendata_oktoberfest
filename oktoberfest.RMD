@@ -3,14 +3,30 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+
 # Set up environment
 
 ```{r}
 require(httr, quietly = T)
 require(jsonlite, quietly = T)
 require(tidyverse, quietly = T, warn.conflicts = F)
+require(gridExtra, quietly = T, warn.conflicts = F)
+require(grid, quietly = T, warn.conflicts = F)
 ```
 
+```{r, echo = F}
+fillCol1 <- "#1C86EE"
+fillCol2 <- "#63B8FF"
+fillCol3 <- "#00CD00"
+
+# custom theme
+my_theme <- list(
+  theme_bw(),
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))))
+```
 
 # Importing data from API
 
@@ -45,12 +61,16 @@ dt <- dt %>%
   transmute(id = `_id`,
             year = as.integer(jahr),
             duration = as.integer(dauer),
-            beer_cons = as.integer(bier_konsum),
-            hendl_cons = as.integer(hendl_konsum),
+            beer_cons = as.integer(bier_konsum)*100, # change metric to L
+            hendl_cons = as.integer(hendl_konsum)/2, # change metric from 1/2 to 1 chicken
             beer_price = as.numeric(bier_preis),
+            beer_price_dm = beer_price * 1.95583,
             hendl_price = as.numeric(hendl_preis),
-            visitors_total = as.numeric(besucher_gesamt),
-            visitors_day = as.integer(besucher_tag))
+            hendl_price_dm = hendl_price * 1.95583,
+            visitors_total = as.numeric(besucher_gesamt) * 1000000, # change metric to nr. of people
+            visitors_day = as.integer(besucher_tag)*1000) # change metric to nr. of people
+
+dt.copy <- dt
 ```
 
 
@@ -63,24 +83,197 @@ well as total visitors, mean daily visitors and the duration.
 
 Variable          | Metric
 ----------------- | ----------
-beer consumption  | Hektoliter
-beer price        | €/Liter (before 2002: DM/L)
-hendl consumption | ??? 1/2 chicken
-hendl price       | € (before 2002: DM)
-total visitors    | Million
-daily visitors    | Thousand
+beer consumption  | L
+beer price        | €/Liter
+hendl consumption | Chicken
+hendl price       | €
+total visitors    | People
+daily visitors    | People
   
 
 # Data munging
 
+No we will start to work with the oktoberfest data set.
+We will add some information like the years when the Bavarian Central Agricultural Festival (ZLF)
+took place.
 
 ```{r}
 # generate vector with years in which zlf festival took place 
 zlf_years <- c(seq(1810,1996, 3), seq(2000, max(dt$year),4))
 
-dt <- dt %>% 
-  mutate(zlf = factor(ifelse(year %in% zlf_years, 1, 0))) %>% 
+dt <- dt.copy %>% 
+  mutate(zlf = factor(ifelse(year %in% zlf_years, 1, 0)),
+         currency = factor(ifelse(year < 2002, "DM", "€")),
+         beer_price_change = beer_price/lag(beer_price, 1) - 1) %>% 
   select(-id) # remove is column
+
+
+dt$beer_price_change[1] <- 0 # change first value to 0 since NA
+```
+
+# Data analysis
+
+## Beer price and consumption
+
+One of the most things some people are complaining about the Oktoberfest is the its beer price.
+So our first question on the data set is:
+
+**How did the beer price develope from `r min(dt$year, na.rm = T)` to `r max(dt$year, na.rm = T)`?**
+
+*Note: The currency used in the data is €. All prices before the year 2002 seem to be transformed
+from DM (german currency before 2002) to Euro.*
+
+```{r, echo = F}
+dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
+  geom_text(x = 2002, y = 5, label = "Euro introduction", angle = 90, vjust = 1.1, cex = 3) +
+  scale_y_continuous(breaks = seq(0, max(dt$beer_price), 1),
+                     labels = scales::dollar_format(suffix = " €", prefix = "")) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
+  xlab("Year") +
+  ylab("Price 1L beer") + 
+  ggtitle("Development of beer price") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3))
+
+```
+In fact the prie for 1L beer increased almost linear over the years. We will try to use a simple
+model to descripe the data:
+
+```{r}
+fit <- lm(beer_price ~ year, data = dt)
+fit_dm <- lm(beer_price ~ year, data = subset(dt, year < 2002))
+fit_euro <- lm(beer_price ~ year, data = subset(dt, year >= 2002))
+```
+
+If we fit a linear regression model to the data, the simple model suggests that the beer price
+increased by **`r round(coefficients(fit)[2], 2)` Cents per year**.
+
+Fitting models to the years with different curencies separately, we see a small differens in estimated
+price increase per year:  
+In years with DM currency the estimated yearly price increase was about 
+**`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
+In the years after the Euro has been introduced, the estimated yearly price increase was 
+**`r round(coefficients(fit_euro)[2], 2)` Cents per year**.
+
+```{r, echo = F}
+dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  geom_vline(xintercept = 2002, lty = 2, size = 0.7) +
+  geom_text(x = 2002, y = 5, label = "Euro introduction", angle = 90, vjust = 1.1, cex = 3) +
+  geom_segment(x = min(dt$year), xend = 2001, y = predict(fit_dm, list(year = min(dt$year))),
+               yend = predict(fit_dm, list(year = 2001)), size = 1, alpha = 0.7) +
+  geom_text(x = 1987, y = 8,
+            label = paste("During the DM currency period\nthe estimated yearly\nprice increase was",
+                          round(coefficients(fit_dm)[2],2),
+                          "Cent"),
+            hjust = 0,
+            cex = 3.5) +
+  geom_segment(x = 2002, xend = max(dt$year), y = predict(fit_euro, list(year = 2002)),
+               yend = predict(fit_euro, list(year = max(dt$year))), size = 1, alpha = 0.7) +
+  geom_text(x = 2007, y = 6, 
+            label = paste("Since the Euro introduction\nin 2002 the estimated yearly\nprice increase was",
+                          round(coefficients(fit_euro)[2], 2),
+                          "Cent"),
+            hjust = 0,
+            cex = 3.5) +
+  scale_y_continuous(breaks = seq(0, max(dt$beer_price), 1),
+                     labels = scales::dollar_format(suffix = " €", prefix = "")) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
+  xlab("Year") +
+  ylab("Price 1L beer") + 
+  ggtitle("Development of beer price", "Modeled increase for each currency period") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3))
+```
+
+
+Now that we know that the price increased over the years, the next question which arises is:
+
+
+**Did this increase have a negative influence on mean beer consumption per visitor?**
+
+
+```{r, echo = F}
+p1 <- dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$beer_price), 1)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
+  xlab("Year") +
+  ylab("Price 1L beer") + 
+  ggtitle("Mean beer consumption per visitor compared to price development") +
+  my_theme +  
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(5.5,5.5,0,5.5), "points"))
+
+p2 <- dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = beer_cons/visitors_total), fill = fillCol1, width = 0.8) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " L", prefix = ""),
+                     breaks = seq(0, max(dt$beer_cons/dt$visitors_total), 0.25)) +  
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
+  coord_cartesian(ylim = c(0,max(dt$beer_cons/dt$visitors_total) + 0.1)) +
+  xlab("Year") +
+  ylab("Beer consumption\nper visitor") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3),
+        plot.margin = unit(c(0,5.5,5.5,5.5), "points")) 
+
+grid.newpage()
+grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
+```
+
+We do not see a decline in mean beer consumption per visitor over the years.
+In fact, since around year 1999 it seems that it even has been increasing steadily. 
+
+So the data set suggests that the price does **not** 
+seem to have a negative influence on mean beer consumption per visitor.
+
+
+## Hendl price and consumption
+
+```{r}
+p1 <- dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y = hendl_price), color = fillCol3, size = 1) +
+  #geom_col(aes(x = year, y = hendl_price), fill = fillCol3, width = 0.8) +
+  geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
+  geom_text(x = 2002, y = 10, label = "Euro Introduction", angle = 90, vjust = 1.1, cex = 3,
+            hjust = 1.6) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$hendl_price), 1)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  xlab("Year") +
+  ylab("Hendl Price") +
+  my_theme +  
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(5.5,5.5,0,5.5), "points"))
+
+
+p2 <- dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = hendl_cons/visitors_total*100), fill = fillCol1, width = 0.8) +
+  geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
+  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons/dt$visitors_total*100), 1)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  xlab("Year") +
+  ylab("Hendl Consumption \nper 100 visitor") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1.5, hjust = 1.4),
+        plot.margin = unit(c(0,5.5,5.5,5.5), "points")) 
+
+grid.newpage()
+grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
 ```
 
 
@@ -101,6 +294,14 @@ dt %>%
   geom_col(aes(x =  year, y = beer_cons, fill = zlf)) 
 ```
 
+```{r}
+
+dt %>% 
+  ggplot() +
+  geom_col(aes(x =  year, y = hendl_cons, fill = zlf)) 
+```
+
+
 ## beer and hendl consumption per person
 
 ```{r}
@@ -111,7 +312,7 @@ dt %>%
 
 dt %>% 
   ggplot() +
-  geom_col(aes(x = year, y = hendl_cons/visitors_total/1000000, fill = hendl_price))
+  geom_col(aes(x = year, y = hendl_cons/visitors_total/1000000, fill = hendl_price)) 
 ```
 
 
