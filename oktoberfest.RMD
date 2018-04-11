@@ -1,6 +1,14 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: Short Oktoberfest Analysis
+author: Thomas Schmidt
+date: "2018-04-11"
+output:
+  prettydoc::html_pretty:
+    theme: github
+    highlight: vignette
+  html_notebook:
+    theme: yeti
+    highlight: default
 ---
 
 
@@ -26,6 +34,12 @@ my_theme <- list(
         panel.grid.minor.x = element_blank(),
         axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
         axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))))
+
+knitr::opts_chunk$set(
+    fig.width   = 10,      
+    fig.height  = 5,      
+    fig.align   = 'center', 
+    echo        = TRUE)    
 ```
 
 # Importing data from API
@@ -126,8 +140,8 @@ from DM (german currency before 2002) to Euro.*
 ```{r, echo = F}
 dt %>% 
   ggplot() +
-  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
-  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y = beer_price), color = fillCol3) +
   geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
   geom_text(x = 2002, y = 5, label = "Euro introduction", angle = 90, vjust = 1.1, cex = 3) +
   scale_y_continuous(breaks = seq(0, max(dt$beer_price), 1),
@@ -140,6 +154,7 @@ dt %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.3))
 
 ```
+
 In fact the prie for 1L beer increased almost linear over the years. We will try to use a simple
 model to descripe the data:
 
@@ -162,12 +177,12 @@ In the years after the Euro has been introduced, the estimated yearly price incr
 ```{r, echo = F}
 dt %>% 
   ggplot() +
-  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
-  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y = beer_price), color = fillCol3) +
   geom_vline(xintercept = 2002, lty = 2, size = 0.7) +
   geom_text(x = 2002, y = 5, label = "Euro introduction", angle = 90, vjust = 1.1, cex = 3) +
-  geom_segment(x = min(dt$year), xend = 2001, y = predict(fit_dm, list(year = min(dt$year))),
-               yend = predict(fit_dm, list(year = 2001)), size = 1, alpha = 0.7) +
+  geom_segment(x = min(dt$year), xend = 2002, y = predict(fit_dm, list(year = min(dt$year))),
+               yend = predict(fit_dm, list(year = 2002)), size = 1, alpha = 0.7) +
   geom_text(x = 1987, y = 8,
             label = paste("During the DM currency period\nthe estimated yearly\nprice increase was",
                           round(coefficients(fit_dm)[2],2),
@@ -202,8 +217,8 @@ Now that we know that the price increased over the years, the next question whic
 ```{r, echo = F}
 p1 <- dt %>% 
   ggplot() +
-  geom_line(aes(x = year, y =beer_price), color = fillCol3, size = 1) +
-  geom_point(aes(x = year, y =beer_price), color = fillCol3) +
+  geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y = beer_price), color = fillCol3) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$beer_price), 1)) +
   scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
@@ -276,6 +291,52 @@ grid.newpage()
 grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
 ```
 
+## Bavarian Central Agricultural Festival (ZLF)
+
+### Did the ZLF bring more visitor to the Oktoberfest (remove outlier 2001)
+
+```{r}
+dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = visitors_total, fill = zlf))
+
+dt %>% 
+  ggplot(aes(x = zlf, y = visitors_total)) +
+  geom_violin(aes(x = zlf, y = visitors_total)) +
+  geom_boxplot( alpha = 0.6) +
+  geom_jitter(position = position_jitter(height = NULL, width = 0.2))
+```
+
+
+### Did the visitors consume more beer in ZLF years
+```{r}
+dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = beer_cons/visitors_total, fill = zlf))
+
+dt %>% 
+  ggplot(aes(x = zlf, y = beer_cons/visitors_total)) +
+  geom_violin() +
+  geom_boxplot( alpha = 0.6) +
+  geom_jitter(position = position_jitter(height = NULL, width = 0.2))
+```
+
+
+### Did the visitors consume more hendl in ZLF years
+
+```{r}
+dt %>% 
+  ggplot() +
+  geom_col(aes(x = year, y = hendl_cons/visitors_total*100, fill = zlf))
+
+dt %>% 
+  ggplot(aes(x = zlf, y = hendl_cons/visitors_total*100)) +
+  geom_violin() +
+  geom_boxplot( alpha = 0.6) +
+  geom_jitter(position = position_jitter(height = NULL, width = 0.2))
+```
+
+
 
 # Quick plots
 
@@ -283,15 +344,15 @@ grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
 ```{r}
 dt %>% 
   ggplot() +
-  geom_density(aes(x = beer_cons, fill = zlf), alpha = 0.4) 
+  geom_density(aes(x = beer_cons/visitors_total, fill = zlf), alpha = 0.4) 
 
 dt %>% 
   ggplot() +
-  geom_boxplot(aes(x = zlf, y = beer_cons, fill = zlf), alpha = 0.4) 
+  geom_boxplot(aes(x = zlf, y = beer_cons/visitors_total, fill = zlf), alpha = 0.4) 
 
 dt %>% 
   ggplot() +
-  geom_col(aes(x =  year, y = beer_cons, fill = zlf)) 
+  geom_col(aes(x =  year, y = beer_cons/visitors_total, fill = zlf)) 
 ```
 
 ```{r}
@@ -301,21 +362,18 @@ dt %>%
   geom_col(aes(x =  year, y = hendl_cons, fill = zlf)) 
 ```
 
-
-## beer and hendl consumption per person
-
+## beer price increase before and after euro
 ```{r}
 dt %>% 
-  ggplot() +
-  geom_col(aes(x = year, y = beer_cons/visitors_total/10000, fill = beer_price))
-
-
-dt %>% 
-  ggplot() +
-  geom_col(aes(x = year, y = hendl_cons/visitors_total/1000000, fill = hendl_price)) 
+  ggplot(aes(x = currency, y = beer_price_change/beer_price)) +
+  geom_violin() +
+  geom_boxplot(alpha = 0.6) +
+  geom_jitter()
 ```
+
 
 
 # Ideas
 
 * Zusätzlicher Datensatz mit Zeltpreisen suchen
+* Zusätzlicher Datensatz mit Wetter -> % der Tage mit Regen
