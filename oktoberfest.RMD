@@ -1,31 +1,51 @@
 ---
-title: Short Oktoberfest Analysis
+title: Munich Open Data Oktoberfest Analysis
 author: Thomas Schmidt
 date: "2018-04-11"
 output:
-  prettydoc::html_pretty:
-    theme: github
-    highlight: vignette
   html_notebook:
     theme: yeti
     highlight: default
+  prettydoc::html_pretty:
+    theme: github
+    highlight: vignette
 ---
+
+# Introduction
+
+# Aim
+
+* Using the API to import data with R
+* First public analysis on my blog
+* Learning and getting feedback
+* Create some insights about the Oktoberfest
+
+
+* Mention other analysis
+
+# Methods and Material
+
+[data set side](https://www.opengov-muenchen.de/dataset/oktoberfest/resource/e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2)
+
 
 
 # Set up environment
 
+We will start this analysis by loading some required packgages:
 ```{r}
 require(httr, quietly = T)
-require(jsonlite, quietly = T)
+#require(jsonlite, quietly = T)
 require(tidyverse, quietly = T, warn.conflicts = F)
 require(gridExtra, quietly = T, warn.conflicts = F)
 require(grid, quietly = T, warn.conflicts = F)
 ```
 
 ```{r, echo = F}
+# custom colors
 fillCol1 <- "#1C86EE"
-fillCol2 <- "#63B8FF"
+fillCol2 <- "#b2df8a"
 fillCol3 <- "#00CD00"
+fillCol4 <- "#a6cee3"
 
 # custom theme
 my_theme <- list(
@@ -44,6 +64,11 @@ knitr::opts_chunk$set(
 
 # Importing data from API
 
+Having the environment set up, we will use the *Munich Open Data API* and the `httr` library to load 
+our data from the server and store it as a data.frame within R.   
+The resource-id (`e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2`), we will use to get our data via the API,
+can be found under additional information (german: "zusätzliche Informationen") at the bottom of the [data set side](https://www.opengov-muenchen.de/dataset/oktoberfest/resource/e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2)
+
 ```{r}
 url <- "https://www.opengov-muenchen.de"
 path <- "api/action/datastore_search?resource_id=e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2"
@@ -59,16 +84,18 @@ dt <- bind_rows(result$result$records)
 ```
 
 
-# Prepare data
-
-Let's take a quick view at our data:
+Let's take a quick view at our data to see, if the import went well:
 ```{r}
 head(dt)
 ```
 
 
+The API data import worked!   
+
 As we see, the columns have german names.
-We will change this for all english speaking readers.
+We will change this for all english speaking readers. By doing this, we will also performe some
+class- and metric corrections.
+
 
 ```{r}
 dt <- dt %>% 
@@ -76,15 +103,11 @@ dt <- dt %>%
             year = as.integer(jahr),
             duration = as.integer(dauer),
             beer_cons = as.integer(bier_konsum)*100, # change metric to L
-            hendl_cons = as.integer(hendl_konsum)/2, # change metric from 1/2 to 1 chicken
+            hendl_cons = as.integer(hendl_konsum), # change metric from 1/2 to 1 chicken
             beer_price = as.numeric(bier_preis),
-            beer_price_dm = beer_price * 1.95583,
             hendl_price = as.numeric(hendl_preis),
-            hendl_price_dm = hendl_price * 1.95583,
             visitors_total = as.numeric(besucher_gesamt) * 1000000, # change metric to nr. of people
             visitors_day = as.integer(besucher_tag)*1000) # change metric to nr. of people
-
-dt.copy <- dt
 ```
 
 
@@ -100,44 +123,43 @@ Variable          | Metric
 beer consumption  | L
 beer price        | €/Liter
 hendl consumption | Chicken
-hendl price       | €
+hendl price       | €/half chicken
 total visitors    | People
 daily visitors    | People
   
 
 # Data munging
 
-No we will start to work with the oktoberfest data set.
+
+Now we will start to work with the Oktoberfest data set.
 We will add some information like the years when the Bavarian Central Agricultural Festival (ZLF)
-took place.
+took place and other variables, which we will use in our analysis
 
 ```{r}
 # generate vector with years in which zlf festival took place 
 zlf_years <- c(seq(1810,1996, 3), seq(2000, max(dt$year),4))
 
-dt <- dt.copy %>% 
+dt <- dt %>% 
   mutate(zlf = factor(ifelse(year %in% zlf_years, 1, 0)),
-         currency = factor(ifelse(year < 2002, "DM", "€")),
-         beer_price_change = beer_price/lag(beer_price, 1) - 1) %>% 
+         hendl_cons_per_visitor = hendl_cons / visitors_total,
+         beer_cons_per_visitor = beer_cons / visitors_total) %>% 
   select(-id) # remove is column
-
-
-dt$beer_price_change[1] <- 0 # change first value to 0 since NA
 ```
 
 # Data analysis
 
 ## Beer price and consumption
 
-One of the most things some people are complaining about the Oktoberfest is the its beer price.
-So our first question on the data set is:
+Every year one of the most discussed topics around the Oktoberfest is the increased beer price.
+People are always complaining that the beer is too expensive. Since we have the historical data on
+beer prices, our first question on the data set is:
 
 **How did the beer price develope from `r min(dt$year, na.rm = T)` to `r max(dt$year, na.rm = T)`?**
 
-*Note: The currency used in the data is €. All prices before the year 2002 seem to be transformed
+*Note: The currency used in the data is €. All prices before the year 2002 have been transformed
 from DM (german currency before 2002) to Euro.*
 
-```{r, echo = F}
+```{r, echo = F, fig.align = "center"}
 dt %>% 
   ggplot() +
   geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
@@ -155,8 +177,8 @@ dt %>%
 
 ```
 
-In fact the prie for 1L beer increased almost linear over the years. We will try to use a simple
-model to descripe the data:
+In fact the price for 1L beer increased almost linear over the years. We will try to use a simple
+linear regression model to descripe the data:
 
 ```{r}
 fit <- lm(beer_price ~ year, data = dt)
@@ -164,17 +186,20 @@ fit_dm <- lm(beer_price ~ year, data = subset(dt, year < 2002))
 fit_euro <- lm(beer_price ~ year, data = subset(dt, year >= 2002))
 ```
 
-If we fit a linear regression model to the data, the simple model suggests that the beer price
-increased by **`r round(coefficients(fit)[2], 2)` Cents per year**.
+Our model suggests that the beer price increased by 
+**`r round(coefficients(fit)[2], 2)` Cents per year**.
 
 Fitting models to the years with different curencies separately, we see a small differens in estimated
 price increase per year:  
-In years with DM currency the estimated yearly price increase was about 
-**`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
-In the years after the Euro has been introduced, the estimated yearly price increase was 
-**`r round(coefficients(fit_euro)[2], 2)` Cents per year**.
 
-```{r, echo = F}
+* In years with DM currency the estimated yearly price increase was about 
+**`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
+* In the years after the Euro has been introduced, the estimated yearly price increase was 
+**`r round(coefficients(fit_euro)[2], 2)` Cents per year**.   
+
+
+
+```{r, echo = F, fig.align = "center"}
 dt %>% 
   ggplot() +
   geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
@@ -208,13 +233,15 @@ dt %>%
 ```
 
 
-Now that we know that the price increased over the years, the next question which arises is:
+Now that we confirmed that the price increased over the years, the next question which arises is:
 
 
 **Did this increase have a negative influence on mean beer consumption per visitor?**
 
+In order to answer this question we will start with a visualisation of our data:
 
-```{r, echo = F}
+
+```{r, echo = F, fig.align = "center"}
 p1 <- dt %>% 
   ggplot() +
   geom_line(aes(x = year, y = beer_price), color = fillCol3, size = 1) +
@@ -232,11 +259,12 @@ p1 <- dt %>%
 
 p2 <- dt %>% 
   ggplot() +
-  geom_col(aes(x = year, y = beer_cons/visitors_total), fill = fillCol1, width = 0.8) +
+  geom_col(aes(x = year, y = beer_cons_per_visitor), fill = fillCol1, width = 0.8, alpha = 0.7,
+           color = fillCol1) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " L", prefix = ""),
-                     breaks = seq(0, max(dt$beer_cons/dt$visitors_total), 0.25)) +  
+                     breaks = seq(0, max(dt$beer_cons_per_visitor), 0.25)) +  
   scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
-  coord_cartesian(ylim = c(0,max(dt$beer_cons/dt$visitors_total) + 0.1)) +
+  coord_cartesian(ylim = c(0,max(dt$beer_cons_per_visitor) + 0.1)) +
   xlab("Year") +
   ylab("Beer consumption\nper visitor") +
   my_theme +
@@ -248,27 +276,141 @@ grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
 ```
 
 We do not see a decline in mean beer consumption per visitor over the years.
-In fact, since around year 1999 it seems that it even has been increasing steadily. 
+In fact, since around year 1999 it seems that it even has been increasing steadily.
 
-So the data set suggests that the price does **not** 
-seem to have a negative influence on mean beer consumption per visitor.
+To get an even closer look to the data we will performe a correlation test using the pearson
+correlation coefficient:
+
+```{r}
+cor.test(dt$beer_cons_per_visitor, dt$beer_price)
+```
+
+The test suggest a true correlation of `r round(cor(dt$beer_cons_per_visitor, dt$beer_price),2)`.
+the p-value is way below 0.05 and we have a narrow confidence intervall.
+If we plot the data, all points seem to be on around one line:
+
+```{r, echo = F, fig.align = "center"}
+cor.coef <- round(with(dt, cor(beer_cons_per_visitor, beer_price)), 2)
+     
+dt %>% 
+  ggplot() +
+  geom_point(aes(beer_price, beer_cons_per_visitor), color = fillCol4, size = 2) +
+  geom_text(x = 5, y = 1.15, label = paste("Correlation:",cor.coef)) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " L", prefix = ""),
+                     breaks = seq(0, max(dt$beer_cons_per_visitor), 0.25)) +  
+  scale_x_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$beer_price), 1)) +
+  ylab("beer consumption\nper visitor") +
+  xlab("Price 1L beer") +
+  ggtitle("Correlation between beer price and consumption", "Correlation = Causation?") +
+  my_theme +
+  theme(legend.position = c(0.9,0.9),
+        legend.background = element_rect(fill = "white",
+                                  size = 0.5, linetype = "solid", 
+                                  colour = "black"))
+```
+
+
+This result would suggest that beer consumption increases the higher the beer price gets.
+Nevertheless, in my opinion, this is an example that **correlation does not imply causation**.
+I think that the increased consumption is a separate phenomena and not caused by increased prices.
+Some reasons you can think of might be:   
+
+* Oktoberfest gets more and more popular outside of munich. For people coming from Australia, Sweden,
+etc. the beer is still cheap compared to their home and they come to have a great time and a lot of
+"Maß" beer.
+
+In conlusion the data set suggests that **the price does not 
+seem to have a negative influence on mean beer consumption per visitor**.
 
 
 ## Hendl price and consumption
 
-```{r}
-p1 <- dt %>% 
+On the Oktoberfest it is not just about drinking. A lot of people also like to have something 
+to eat besides their beer. So what about the hendl consumption and price development?
+
+As before we will first have a look at the price only:
+
+
+*Notes*:
+   
+1. *The currency used in the data is €. All prices before the year 2002 have been transformed 
+from DM (german currency before 2002) to Euro.*   
+2. *Before the year 2000 the data are mean prices at the selling places. Since 2000 the data are only
+mean prices inside the tents.*  
+
+```{r, echo = F, fig.align = "center"}
+dt %>% 
   ggplot() +
   geom_line(aes(x = year, y = hendl_price), color = fillCol3, size = 1) +
-  #geom_col(aes(x = year, y = hendl_price), fill = fillCol3, width = 0.8) +
-  geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
-  geom_text(x = 2002, y = 10, label = "Euro Introduction", angle = 90, vjust = 1.1, cex = 3,
-            hjust = 1.6) +
+  geom_point(aes(x = year, y = hendl_price), color = fillCol3) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$hendl_price), 1)) +
   scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
   xlab("Year") +
-  ylab("Hendl Price") +
+  ylab("Price for\n1/2 hendl") +
+  ggtitle("Development of hendl price") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3))
+```
+
+It seems that there was a huge price increase in year 2000. **But we need to be careful**: As mentioned
+in the notes above the data collection method changed in 2000. So we need to compare both periods
+separately. In the year 2013 we have some kind of price outlier. Here the price was raised 
+a huge amount compared to the steady increase the years before. After that the price droped to a 
+level which seems to lie on a line of steady price increase. We will try to model the price 
+increase from year 2000 on using a linear regression model.
+
+```{r}
+fit <- lm(hendl_price ~ year, data = subset(dt, year >= 2000))
+```
+
+The model suggests that the hendl price increased by **`r round(coefficients(fit)[2], 2)` Cents per year** since 2000.
+
+When we add the model to our plot it looks like this:
+
+```{r, echo = F, fig.align = "center"}
+dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y = hendl_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y = hendl_price), color = fillCol3) +
+  geom_vline(xintercept = 1999.5, lty = 2) +
+  geom_text(x = 2002, y = 6.5,
+            label =  paste("Since the year 2000 the estimated\nyearly price increase was",
+                          round(coefficients(fit)[2],2),
+                          "Cent"),
+            hjust = 0) +
+  geom_segment(x = 2000, xend = max(dt$year), y = predict(fit, list(year = 2000)),
+               yend = predict(fit, list(year = max(dt$year))), size = 1, alpha = 0.7) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$hendl_price), 1)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  xlab("Year") +
+  ylab("Price for\n1/2 hendl") +
+  ggtitle("Development of hendl price", "Modeled increase for years since 2000") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3))
+```
+
+Above we saw that the beer price did not have a negative influence on the beer consumption.
+We will ask the same question concerning the hendl price and consumption. To get a first overview,
+we will plot price development and consumption development in one graphic.
+
+```{r, echo = F, fig.align = "center"}
+p1 <- dt %>% 
+  ggplot() +
+  geom_line(aes(x = year, y = hendl_price), color = fillCol3, size = 1) +
+  geom_point(aes(x = year, y = hendl_price), color = fillCol3) +
+  geom_vline(xintercept = 1999.5, lty = 2) +
+  geom_text(x = 2002, y = 6.5,
+            label = "Since 2000 only the prices inside\nthe tents were used for the statistic",
+            hjust = 0) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$hendl_price), 1)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  xlab("Year") +
+  ylab("Price for\n1/2 hendl") +
+  ggtitle("Mean hendl consumption compared to price development") +
   my_theme +  
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -277,34 +419,129 @@ p1 <- dt %>%
 
 p2 <- dt %>% 
   ggplot() +
-  geom_col(aes(x = year, y = hendl_cons/visitors_total*100), fill = fillCol1, width = 0.8) +
-  geom_vline(xintercept = 2002, lty = 2, alpha = 0.7, size = 0.7) +
+  geom_col(aes(x = year, y = hendl_cons/visitors_total*100), fill = fillCol1, width = 0.8,
+           alpha = 0.7, color = fillCol1) +
   scale_y_continuous(breaks = seq(0, max(dt$hendl_cons/dt$visitors_total*100), 1)) +
   scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
   xlab("Year") +
-  ylab("Hendl Consumption \nper 100 visitor") +
+  ylab("Hendl consumption\nper 100 visitors") +
   my_theme +
   theme(axis.text.x = element_text(angle = 45, vjust = 1.5, hjust = 1.4),
         plot.margin = unit(c(0,5.5,5.5,5.5), "points")) 
 
 grid.newpage()
 grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
+
 ```
+
+
+We see that, that the hendl consumption droped in 2001 after slowely decreasing from 1991 on.
+After the drop, the consumption stayed at a constant level until a similar drop in 2016 whereas
+the price went up. 
+For me it looks like the hendl consumption beeing correlated with price until year 2000. 
+After that the consumption reached a minimum bound. Maybe at this point the remaining hendl 
+consumption is not that price sensitive anymore.
+
+We can check the correlation by performing a correlation test using the Pearson correlation
+coefficient:
+
+```{r}
+with(subset(dt, year < 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))
+with(subset(dt, year >= 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))
+```
+
+The correlation coefficients suggest a negatvie correlation for both periods. Nevertheless, 
+the tests confirm the null hypothisis which says that there is no true correlation between the 
+variables.   
+For the period before 2000 there is at least a strong tendency 
+(`p = `r with(subset(dt, year < 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))$p.value``)
+for a true negative correlation. Despite that, the confidence intervall for the correlation coefficient is very big, which gives us a strong uncertainty.
+
+
+```{r, echo = F, fig.align = "center"}
+cor_before_2000 <- round(with(subset(dt, year < 2000),
+                              cor(hendl_cons/visitors_total*100, hendl_price)), 2)
+cor_after_2000 <- round(with(subset(dt, year >= 2000),
+                             cor(hendl_cons/visitors_total*100, hendl_price)), 2)
+     
+dt %>% 
+  mutate(period = ifelse(year < 2000, "Before 2000", "Since 2000")) %>% 
+  ggplot() +
+  geom_point(aes(hendl_price, hendl_cons/visitors_total*100, color = period), size = 2) +
+  geom_label(x = 10, y = 4.8, label = paste0("Correlation: ",cor_after_2000), fill = fillCol4) +
+  geom_label(x = 5, y = 3.8, label = paste0("Correlation: ",cor_before_2000, " *"), fill = fillCol2) +
+  scale_color_manual(values = c(fillCol2, fillCol4),
+                     guide = guide_legend(title = element_blank())) +
+  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons/dt$visitors_total*100), 1)) +
+  scale_x_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$hendl_price), 1)) +
+  ylab("Hendl consumption\nper 100 visitors") +
+  xlab("Price for 1/2 hendl") +
+  ggtitle("Correlation between hendl price and consumption") +
+  my_theme +
+  theme(legend.position = c(0.9,0.85),
+        legend.background = element_rect(fill = "white",
+                                  size = 0.5, linetype = "solid",
+                                  color = "black"))
+```
+
+In conclusion we can say that the **price seems to have an influence on the hendl consumption up to
+a specific point**. Maybe we could explain the constat level of consumption after reaching that
+specific price margin the following:   
+
+Normally people would buy a hendl up to their specific price boundary. That would mean a steady
+decrease in consumption with increasing price.   
+
+Nevertheless their are a lot of companies, which rent a table in a tent and invite their employees
+to come. Most of the time these companies give a free amount of hendl and beer consumption to their
+employes. I think that a big company's price sensitivity concerning hendl and beer is as high as 
+the price sensitivity of a normal Oktoberfest visitor. Thus, even with increasing prices the basic 
+level of consumption does not change a lot.   
+
 
 ## Bavarian Central Agricultural Festival (ZLF)
 
-### Did the ZLF bring more visitor to the Oktoberfest (remove outlier 2001)
+In the last part of our analysis we will have a closer look at the ZLF and its influence on visitor
+count as well as beer and hendl consumption. 
 
-```{r}
+The ZLF is an agricultural exhibition which takes place in parallel to the Oktoberfest at the
+Theresienwiese. Before 1996 the exhibition was held every three years. From there on it has been taken
+place every 4 years.
+
+
+### Did the ZLF bring more visitor to the Oktoberfest?
+
+Since the ZLF is at the same location as the Oktoberfest and a lot of farmers are going there in 
+order to see the exhibition, it could have an influense on visitor count. We will futher investigate
+this hypothisis by looking at our data:
+
+```{r, fig.align = "center"}
 dt %>% 
   ggplot() +
-  geom_col(aes(x = year, y = visitors_total, fill = zlf))
+  geom_col(aes(x = year, y = visitors_total, fill = zlf), alpha = 0.7) +
+  scale_fill_manual(values = c(fillCol1, fillCol3)) +
+  my_theme 
 
 dt %>% 
   ggplot(aes(x = zlf, y = visitors_total)) +
-  geom_violin(aes(x = zlf, y = visitors_total)) +
-  geom_boxplot( alpha = 0.6) +
-  geom_jitter(position = position_jitter(height = NULL, width = 0.2))
+  geom_boxplot(aes(fill = zlf), alpha = 0.6) +
+  geom_jitter(position = position_jitter(height = 0, width = 0.2)) +
+  scale_fill_manual(values = c(fillCol1, fillCol3)) +
+  my_theme 
+```
+
+```{r}
+# test for normal distribution
+shapiro.test(dt[dt$zlf == 1,]$visitors_total)
+shapiro.test(dt[dt$zlf == 0,]$visitors_total)
+```
+
+```{r}
+t.test(visitors_total ~ zlf, data = dt)
+```
+
+```{r}
+kruskal.test(visitors_total ~ zlf, data = dt)
 ```
 
 
@@ -336,31 +573,57 @@ dt %>%
   geom_jitter(position = position_jitter(height = NULL, width = 0.2))
 ```
 
+# Conclusion
+
+* Beer price development 
+* BP influence on consumption
+* Hendl price development
+* Hendl price influene on consumption
+* ZLF influence
 
 
 # Quick plots
 
-## Beer consumption vs. zlf
 ```{r}
+cor.coef <- round(with(dt, cor(beer_cons/visitors_total, beer_price)), 2)
+     
 dt %>% 
   ggplot() +
-  geom_density(aes(x = beer_cons/visitors_total, fill = zlf), alpha = 0.4) 
+  geom_point(aes(beer_price, beer_cons/visitors_total), color = fillCol4, size = 2) +
+  geom_text(x = 5, y = 1.15, label = paste("Correlation:",cor.coef)) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = " L", prefix = ""),
+                     breaks = seq(0, max(dt$beer_cons/dt$visitors_total), 0.25)) +  
+  scale_x_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
+                     breaks = seq(0, max(dt$beer_price), 1)) +
+  ylab("beer consumption\nper visitor") +
+  xlab("Price 1L beer") +
+  ggtitle("Correlation between beer price and consumption", "Correlation = Causation?") +
+  my_theme +
+  theme(legend.position = c(0.9,0.9),
+        legend.background = element_rect(fill = "white",
+                                  size = 0.5, linetype = "solid", 
+                                  colour = "black"))
+```
 
-dt %>% 
-  ggplot() +
-  geom_boxplot(aes(x = zlf, y = beer_cons/visitors_total, fill = zlf), alpha = 0.4) 
 
-dt %>% 
-  ggplot() +
-  geom_col(aes(x =  year, y = beer_cons/visitors_total, fill = zlf)) 
+```{r}
+test <- dt %>% 
+  mutate(hendl_cons_change = (hendl_cons/visitors_total - lag(hendl_cons/visitors_total,1)),
+         hendl_price_change = (hendl_price - lag(hendl_price, 1))/lag(hendl_price,1)) 
+
+test_fit <- lm(hendl_cons_change ~ hendl_price_change, data = test)
+summary(test_fit)
+
 ```
 
 ```{r}
-
 dt %>% 
+  mutate(beer_cons_change = (beer_cons/visitors_total - lag(beer_cons/visitors_total,1)),
+         beer_price_change = (beer_price - lag(beer_price, 1))/lag(beer_price,1)) %>% 
   ggplot() +
-  geom_col(aes(x =  year, y = hendl_cons, fill = zlf)) 
+  geom_point(aes(x = beer_price_change, y = beer_cons_change))
 ```
+
 
 ## beer price increase before and after euro
 ```{r}
@@ -377,3 +640,7 @@ dt %>%
 
 * Zusätzlicher Datensatz mit Zeltpreisen suchen
 * Zusätzlicher Datensatz mit Wetter -> % der Tage mit Regen
+
+* Danksagung and munich open data (auch für Zusatzinformationen)
+
+
