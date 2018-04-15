@@ -182,8 +182,7 @@ linear regression model to descripe the data:
 
 ```{r}
 fit <- lm(beer_price ~ year, data = dt)
-fit_dm <- lm(beer_price ~ year, data = subset(dt, year < 2002))
-fit_euro <- lm(beer_price ~ year, data = subset(dt, year >= 2002))
+summary(fit)
 ```
 
 Our model suggests that the beer price increased by 
@@ -191,6 +190,14 @@ Our model suggests that the beer price increased by
 
 Fitting models to the years with different curencies separately, we see a small differens in estimated
 price increase per year:  
+
+```{r}
+fit_dm <- lm(beer_price ~ year, data = subset(dt, year < 2002))
+summary(fit_dm)
+fit_euro <- lm(beer_price ~ year, data = subset(dt, year >= 2002))
+summary(fit_euro)
+```
+
 
 * In years with DM currency the estimated yearly price increase was about 
 **`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
@@ -346,7 +353,7 @@ dt %>%
   geom_point(aes(x = year, y = hendl_price), color = fillCol3) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$hendl_price), 1)) +
-  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
   xlab("Year") +
   ylab("Price for\n1/2 hendl") +
   ggtitle("Development of hendl price") +
@@ -357,12 +364,13 @@ dt %>%
 It seems that there was a huge price increase in year 2000. **But we need to be careful**: As mentioned
 in the notes above the data collection method changed in 2000. So we need to compare both periods
 separately. In the year 2013 we have some kind of price outlier. Here the price was raised 
-a huge amount compared to the steady increase the years before. After that the price droped to a 
+a huge amount compared to the steady increase the years before. After that, the price droped to a 
 level which seems to lie on a line of steady price increase. We will try to model the price 
 increase from year 2000 on using a linear regression model.
 
 ```{r}
 fit <- lm(hendl_price ~ year, data = subset(dt, year >= 2000))
+summary(fit)
 ```
 
 The model suggests that the hendl price increased by **`r round(coefficients(fit)[2], 2)` Cents per year** since 2000.
@@ -384,7 +392,7 @@ dt %>%
                yend = predict(fit, list(year = max(dt$year))), size = 1, alpha = 0.7) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$hendl_price), 1)) +
-  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
   xlab("Year") +
   ylab("Price for\n1/2 hendl") +
   ggtitle("Development of hendl price", "Modeled increase for years since 2000") +
@@ -394,7 +402,7 @@ dt %>%
 
 Above we saw that the beer price did not have a negative influence on the beer consumption.
 We will ask the same question concerning the hendl price and consumption. To get a first overview,
-we will plot price development and consumption development in one graphic.
+we will plot the development of price and consumption in one graphic.
 
 ```{r, echo = F, fig.align = "center"}
 p1 <- dt %>% 
@@ -407,7 +415,7 @@ p1 <- dt %>%
             hjust = 0) +
   scale_y_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$hendl_price), 1)) +
-  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
   xlab("Year") +
   ylab("Price for\n1/2 hendl") +
   ggtitle("Mean hendl consumption compared to price development") +
@@ -419,14 +427,14 @@ p1 <- dt %>%
 
 p2 <- dt %>% 
   ggplot() +
-  geom_col(aes(x = year, y = hendl_cons/visitors_total*100), fill = fillCol1, width = 0.8,
+  geom_col(aes(x = year, y = hendl_cons_per_visitor*100), fill = fillCol1, width = 0.8,
            alpha = 0.7, color = fillCol1) +
-  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons/dt$visitors_total*100), 1)) +
-  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 2)) +
+  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons_per_visitor*100), 2)) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
   xlab("Year") +
   ylab("Hendl consumption\nper 100 visitors") +
   my_theme +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1.5, hjust = 1.4),
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1.4),
         plot.margin = unit(c(0,5.5,5.5,5.5), "points")) 
 
 grid.newpage()
@@ -436,23 +444,23 @@ grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), size = "last"))
 
 
 We see that, that the hendl consumption droped in 2001 after slowely decreasing from 1991 on.
-After the drop, the consumption stayed at a constant level until a similar drop in 2016 whereas
-the price went up. 
+After the drop, the consumption stayed at a constant level whereas the price went up.  
 For me it looks like the hendl consumption beeing correlated with price until year 2000. 
 After that the consumption reached a minimum bound. Maybe at this point the remaining hendl 
-consumption is not that price sensitive anymore.
+consumer are not that price sensitive.
 
 We can check the correlation by performing a correlation test using the Pearson correlation
 coefficient:
 
 ```{r}
-with(subset(dt, year < 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))
-with(subset(dt, year >= 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))
+with(subset(dt, year < 2000),cor.test(hendl_cons_per_visitor*100, hendl_price))
+with(subset(dt, year >= 2000),cor.test(hendl_cons_per_visitor*100, hendl_price))
 ```
 
 The correlation coefficients suggest a negatvie correlation for both periods. Nevertheless, 
-the tests confirm the null hypothisis which says that there is no true correlation between the 
-variables.   
+the tests confirm the null hypothisis which says that there is **no true correlation between the 
+variables**.   
+
 For the period before 2000 there is at least a strong tendency 
 (`p = `r with(subset(dt, year < 2000),cor.test(hendl_cons/visitors_total*100, hendl_price))$p.value``)
 for a true negative correlation. Despite that, the confidence intervall for the correlation coefficient is very big, which gives us a strong uncertainty.
@@ -460,19 +468,19 @@ for a true negative correlation. Despite that, the confidence intervall for the 
 
 ```{r, echo = F, fig.align = "center"}
 cor_before_2000 <- round(with(subset(dt, year < 2000),
-                              cor(hendl_cons/visitors_total*100, hendl_price)), 2)
+                              cor(hendl_cons_per_visitor*100, hendl_price)), 2)
 cor_after_2000 <- round(with(subset(dt, year >= 2000),
-                             cor(hendl_cons/visitors_total*100, hendl_price)), 2)
+                             cor(hendl_cons_per_visitor*100, hendl_price)), 2)
      
 dt %>% 
   mutate(period = ifelse(year < 2000, "Before 2000", "Since 2000")) %>% 
   ggplot() +
-  geom_point(aes(hendl_price, hendl_cons/visitors_total*100, color = period), size = 2) +
-  geom_label(x = 10, y = 4.8, label = paste0("Correlation: ",cor_after_2000), fill = fillCol4) +
-  geom_label(x = 5, y = 3.8, label = paste0("Correlation: ",cor_before_2000, " *"), fill = fillCol2) +
+  geom_point(aes(hendl_price, hendl_cons_per_visitor*100, color = period), size = 2) +
+  geom_label(x = 10, y = 10, label = paste0("Correlation: ",cor_after_2000), fill = fillCol4) +
+  geom_label(x = 5, y = 7.5, label = paste0("Correlation: ",cor_before_2000, " *"), fill = fillCol2) +
   scale_color_manual(values = c(fillCol2, fillCol4),
                      guide = guide_legend(title = element_blank())) +
-  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons/dt$visitors_total*100), 1)) +
+  scale_y_continuous(breaks = seq(0, max(dt$hendl_cons_per_visitor*100), 1)) +
   scale_x_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
                      breaks = seq(0, max(dt$hendl_price), 1)) +
   ylab("Hendl consumption\nper 100 visitors") +
@@ -486,16 +494,16 @@ dt %>%
 ```
 
 In conclusion we can say that the **price seems to have an influence on the hendl consumption up to
-a specific point**. Maybe we could explain the constat level of consumption after reaching that
-specific price margin the following:   
+a specific point**. Maybe we could explain the constant level of consumption after reaching that
+specific price margin with the following hypothisis:   
 
 Normally people would buy a hendl up to their specific price boundary. That would mean a steady
 decrease in consumption with increasing price.   
 
 Nevertheless their are a lot of companies, which rent a table in a tent and invite their employees
 to come. Most of the time these companies give a free amount of hendl and beer consumption to their
-employes. I think that a big company's price sensitivity concerning hendl and beer is as high as 
-the price sensitivity of a normal Oktoberfest visitor. Thus, even with increasing prices the basic 
+employes. I think that a big company's price sensitivity concerning hendl and beer is **not** as 
+high as the price sensitivity of a normal Oktoberfest visitor. Thus, even with increasing prices the basic 
 level of consumption does not change a lot.   
 
 
@@ -513,22 +521,69 @@ place every 4 years.
 
 Since the ZLF is at the same location as the Oktoberfest and a lot of farmers are going there in 
 order to see the exhibition, it could have an influense on visitor count. We will futher investigate
-this hypothisis by looking at our data:
+this hypothisis by looking at our data. In order to adjust for the duration we will use the mean
+daily visitor count for our analysis:
 
 ```{r, fig.align = "center"}
 dt %>% 
+  mutate(zlf = factor(ifelse(zlf == 0, "normal year","ZLF year"))) %>% 
   ggplot() +
-  geom_col(aes(x = year, y = visitors_total, fill = zlf), alpha = 0.7) +
-  scale_fill_manual(values = c(fillCol1, fillCol3)) +
-  my_theme 
+  geom_col(aes(x = year, y = visitors_day/1000, fill = zlf), alpha = 0.7) +
+  scale_fill_manual(values = c(fillCol1, fillCol3),
+                     guide = guide_legend(title = element_blank())) +
+  scale_x_continuous(breaks = seq(min(dt$year), max(dt$year), 1)) +
+  ylab("Visitor count\n[Thousend]") +
+  xlab("Year") +
+  ggtitle("Development of mean daily visitor count", "Colored by ZLF years") +
+  my_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1.4))
+```
 
+We can see that the mean daily visitor count varies around 390000. There was a huge drop in 2001
+which could be due to the terror attacks at the World Trade Center which took place a few weeks
+before the start of the Oktoberfest. Two other big drops can be found in 1988 and 2016.
+
+* Amoklauf in München (2016)
+* Eventuell Wetter?
+* 
+
+Looking at the ZLF years we can not tell whether the
+total visitor count is greater or less in general.   
+
+Let's have a closer look at the total visitor count distribution:
+
+
+```{r, echo = F}
 dt %>% 
-  ggplot(aes(x = zlf, y = visitors_total)) +
+  mutate(zlf = factor(ifelse(zlf == 0, "normal year","ZLF year"))) %>% 
+  ggplot(aes(x = zlf, y = visitors_day/1000)) +
   geom_boxplot(aes(fill = zlf), alpha = 0.6) +
   geom_jitter(position = position_jitter(height = 0, width = 0.2)) +
-  scale_fill_manual(values = c(fillCol1, fillCol3)) +
-  my_theme 
+  scale_fill_manual(values = c(fillCol1, fillCol3),
+                     guide = F) +
+  ylab("Visitor count\n[Thousand]") +
+  xlab("") +
+  my_theme
 ```
+
+
+```{r}
+dt %>% 
+  mutate(zlf = factor(ifelse(zlf == 0, "normal year","ZLF year")),
+         period = factor(ifelse(year < 2001, "Before 9/11", "After 9/11"),
+                         levels = c("Before 9/11", "After 9/11"))) %>% 
+  ggplot(aes(x = zlf, y = visitors_day/1000)) +
+  geom_boxplot(aes(fill = zlf), alpha = 0.6) +
+  geom_jitter(position = position_jitter(height = 0, width = 0.2)) +
+  scale_fill_manual(values = c(fillCol1, fillCol3),
+                     guide = F) +
+  ylab("Visitor count\n[Thousand]") +
+  xlab("") +
+  my_theme +
+  facet_wrap(~period)
+```
+
+
 
 ```{r}
 # test for normal distribution
