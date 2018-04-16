@@ -12,8 +12,6 @@ output:
   prettydoc::html_pretty:
     theme: github
     highlight: vignette
-    toc: true
-    toc_float: true
     number_sections: true
 ---
 
@@ -565,14 +563,14 @@ dt %>%
 We can see that the mean daily visitor count varies around 390000. There was a huge drop in 2001
 which could be due to the terror attacks at the World Trade Center which took place a few weeks
 before the start of the Oktoberfest. Two other big drops compared to the previous year can
-be found in 1988 and 2016. For 2016 one could also argue that this drop is due to the shooting on
-July 22nd in the same year and because of the general fear of terror attacks.
+be found in 1988 and 2016. For 2016 one could also argue that this drop is due to the shooting in
+Munich on July 22nd in the same year and because of the general fear of terror attacks.
 Actually my research did not find any reasons for the drop in 1988. Even the weather had been good
-around the Oktoberfest.   
+around the Oktoberfest in that year.   
 
 
 Looking at years the ZLF took place, we can not tell whether the total visitor count is greater 
-or less in general. It looks like, though, that the mean daily visitor count has been varying 
+or less in general. It looks like, though, that the general mean daily visitor count has been varying 
 around a lower level since 2001. We will investigate this hypothisis later.   
 
 But first let's have a closer look at the total visitor count distribution for years with
@@ -734,7 +732,12 @@ wilcox.test(beer_cons_per_visitor ~ zlf, data = dt, conf.int = T)
 The test result suggests that **there is no statistical difference in beer consumption per visitor
 bewteen ZLF and normal years**
 
-### Did the visitors consume more hendl in ZLF years
+### Did the visitors consume more hendl in ZLF years?
+
+In the last part of our analysis of the ZLF and its influence we will look at the hendl consumption.
+The analysis will be performed the same way as above.   
+
+Again, we start with a colored plot of the hendl consumption development and two boxplots:
 
 ```{r, echo = F, fig.align = "center"}
 dt %>% 
@@ -759,6 +762,7 @@ dt %>%
 ```
 
 
+
 ```{r, echo = F, fig.align = "center"}
 dt %>% 
   mutate(zlf = factor(ifelse(zlf == 0, "normal year","ZLF year"))) %>% 
@@ -773,6 +777,11 @@ dt %>%
   ggtitle("Distribution of hendl consumption per 100 visitors", "Separated by ZLF") +
   my_theme
 ```
+
+
+The data distribution looks again pretty similar for years with and without ZLF.
+The ZLF boxplot is just litte bit more widespread than the other. Nevertheless, we will 
+performe our tests as before:
 
 
 ```{r}
@@ -795,13 +804,27 @@ qqline(dt[dt$zlf == 0,]$hendl_cons_per_visitor)
 par(mfrow = c(1,1))
 ```
 
+
+This time the test for normal distribution suggests that at least the normal year data are not normally
+distributed. That means we definately need a non parametric test to compare the group means.
+
+
 ```{r}
 wilcox.test(hendl_cons_per_visitor ~ zlf, data = dt, conf.int = T)
 ```
 
-## Mean daily visitor count 
 
- 
+The Wilcoxon test confirms our impression that ***here is no statistical difference between the mean
+hendl consumption of both groups**
+
+## Mean daily visitor count before and after 9/11
+
+
+
+Finally we will look at the hypothisis that *the mean daily visitor count decreased to a lower level
+after the 9/11 terror attacks.   
+
+The boxplot below shows the mean daily visitor distribution of both periods:
 
 ```{r, echo = F}
 
@@ -820,6 +843,27 @@ dt %>%
 ```
 
 
+The boxplot seems to support our hypothisis. Let's see what the tests suggest:
+
+
+```{r}
+
+# test for normal distribution of data before 2000
+shapiro.test(dt[dt$year < 2000,]$visitors_day)
+# test for normal distribution of data after 2000
+shapiro.test(dt[dt$year >= 2000,]$visitors_day)
+```
+
+```{r}
+res <- t.test(visitors_day ~ ifelse(year <= 2000, "After 9/11", "Before 9/11"), data = dt, conf.int = T)
+res$estimate
+```
+
+The t-test confirms our hypothisis. **The estimated decrease in daily visitors after 9/11 is 
+`r as.integer(res$estimate[1] - res$estimate[2])` visitors**. 
+The 95% confidence intervall for the difference is `r as.integer(res$conf.int[1])` to
+`r as.integer(res$conf.int[2])` visitors.
+
 # Conclusion
 
 * Beer price development 
@@ -827,59 +871,9 @@ dt %>%
 * Hendl price development
 * Hendl price influene on consumption
 * ZLF influence
+* 9/11
 
-
-# Quick plots
-
-```{r}
-cor.coef <- round(with(dt, cor(beer_cons/visitors_total, beer_price)), 2)
-     
-dt %>% 
-  ggplot() +
-  geom_point(aes(beer_price, beer_cons/visitors_total), color = fillCol4, size = 2) +
-  geom_text(x = 5, y = 1.15, label = paste("Correlation:",cor.coef)) +
-  scale_y_continuous(labels = scales::dollar_format(suffix = " L", prefix = ""),
-                     breaks = seq(0, max(dt$beer_cons/dt$visitors_total), 0.25)) +  
-  scale_x_continuous(labels = scales::dollar_format(suffix = " €", prefix = ""),
-                     breaks = seq(0, max(dt$beer_price), 1)) +
-  ylab("beer consumption\nper visitor") +
-  xlab("Price 1L beer") +
-  ggtitle("Correlation between beer price and consumption", "Correlation = Causation?") +
-  my_theme +
-  theme(legend.position = c(0.9,0.9),
-        legend.background = element_rect(fill = "white",
-                                  size = 0.5, linetype = "solid", 
-                                  colour = "black"))
-```
-
-
-```{r}
-test <- dt %>% 
-  mutate(hendl_cons_change = (hendl_cons/visitors_total - lag(hendl_cons/visitors_total,1)),
-         hendl_price_change = (hendl_price - lag(hendl_price, 1))/lag(hendl_price,1)) 
-
-test_fit <- lm(hendl_cons_change ~ hendl_price_change, data = test)
-summary(test_fit)
-
-```
-
-```{r}
-dt %>% 
-  mutate(beer_cons_change = (beer_cons/visitors_total - lag(beer_cons/visitors_total,1)),
-         beer_price_change = (beer_price - lag(beer_price, 1))/lag(beer_price,1)) %>% 
-  ggplot() +
-  geom_point(aes(x = beer_price_change, y = beer_cons_change))
-```
-
-
-## beer price increase before and after euro
-```{r}
-dt %>% 
-  ggplot(aes(x = currency, y = beer_price_change/beer_price)) +
-  geom_violin() +
-  geom_boxplot(alpha = 0.6) +
-  geom_jitter()
-```
+# Danksagung
 
 
 
