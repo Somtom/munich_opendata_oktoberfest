@@ -3,28 +3,30 @@ title: "Oktoberfest Analysis Part I"
 author: "Thomas Schmidt"
 date: '2018-04-22'
 output:
-  html_notebook
+  html_notebook:
+    theme: yeti
 ---
 
 
 
-![](./img/oktoberfest.jpg)
+![By Bayreuth2009 [GFDL](http://www.gnu.org/copyleft/fdl.html); [CC BY 3.0](https://creativecommons.org/licenses/by/3.0), from Wikimedia Commons](https://upload.wikimedia.org/wikipedia/commons/a/ab/M%C3%BCnchen%2C_Sch%C3%BCtzen-Festzelt%2C_Oktoberfest_2012_%2801%29.jpg)
 
 # Introduction
 
 Everybody knows the Oktoberfest which takes place in Munich every year. In this blog post series we 
-will look into a public availabe dataset and try to gain some insights about the Oktoberfest.   
-In the first part we will load and describe the data. Furthermore we will analyse the price and
-consumption of beer and hendl (chicken) over the years.  
+are going to look into a public available data set and try to gain some insights about the Oktoberfest.   
 
-In the second part we will have a closer look at the Bavarian Central Agricultural Festival - also 
-known as "ZLF" - and its influence on beer- and hendl consumption, as well as visitor count. 
-Further, we will look at the influence of the 9/11 terror attacks.
+In the first part we load and describe the data. Furthermore we analyse the price and consumption of
+beer and hendl (chicken) over the years.  
+
+In the second part we are going to have a closer look at the Bavarian Central Agricultural Festival
+- also known as "ZLF" - and its influence on beer- and hendl consumption, as well as visitor count. 
+Further, we are going to look at the influence of the 9/11 terror attacks.
 
 
 # Aim
 
-Since I am currently diving into the field of data analysis and machine learning I decided to start
+Since I am currently diving into the field of data analysis and machine learning, I decided to start
 my first public analysis in order to use the tools I have been learning so far. The aim
 of this exploratory data analysis was to create some insights about the Oktoberfest using the public
 available Oktoberfest data set from the [Munich Open Data side](https://www.opengov-muenchen.de/).
@@ -83,9 +85,10 @@ knitr::opts_chunk$set(
 # Importing data from API
 
 Having the environment set up, we will use the *Munich Open Data API* and the `httr` library to load 
-our data from the server and store it as a data.frame within R.   
-The resource-id (`e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2`), which we will use to get our data via the API,
-can be found under additional information (German: "zusätzliche Informationen") at the bottom of the [data set side](https://www.opengov-muenchen.de/dataset/oktoberfest/resource/e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2).
+our data from the server and store it as a `data.frame` within R.   
+The resource-id (`e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2`), which we are going to use to get our data 
+via the API, can be found under additional information (German: "zusätzliche Informationen") at the
+bottom of the [data set side](https://www.opengov-muenchen.de/dataset/oktoberfest/resource/e0f664cf-6dd9-4743-bd2b-81a8b18bd1d2).
 
 ```{r}
 url <- "https://www.opengov-muenchen.de"
@@ -111,7 +114,7 @@ head(dt)
 Yes, the API data import worked!   
 
 As we see, the columns have German names.
-We will change this for all English speaking readers. By doing this, we will also perform some
+We change this for all English speaking readers. By doing so, we also perform some
 class- and metric corrections.
 
 
@@ -137,7 +140,7 @@ Our data have `r ncol(dt)` columns and `r nrow(dt)` rows.
 The data set contains yearly data on beer- and hendl (chicken) consumption 
 from `r min(dt$year, na.rm = T)` to `r max(dt$year, na.rm = T)`. 
 It also provides information about the price of both as 
-well as total visitors, mean daily visitors and the duration of the Oktoberfest in that year.
+well as total visitors, mean daily visitors and the duration of the Oktoberfest in each year.
 
 The table below gives a quick overview on variable names and their metrics.
 
@@ -153,9 +156,9 @@ daily visitors    | Nr. of People
 
 # Data munging
 
-Now we will start to get our hands dirty and work with the Oktoberfest data set.
-We will add some information like the years when the Bavarian Central Agricultural Festival (ZLF)
-took place and other variables, which we will use either in part 1 oder 2 of our analysis.
+Now we are going to start to get our hands dirty and work with the Oktoberfest data set.
+We add some information like the years when the Bavarian Central Agricultural Festival (ZLF)
+took place and other variables, which we are going to use either in part 1 or 2 of our analysis.
 
 ```{r}
 # generate vector with years in which zlf festival took place 
@@ -169,25 +172,25 @@ dt <- dt %>%
   select(-id) # remove id column since we don't use it in the analysis
 ```
 
-Since there is no missing data in our dataset we can start our analysis.
+Since there is no missing data in our data set we can start our analysis.
 
 ***
 
 # Data analysis
 
-In our data analysis we will look at the following topics   
+In our data analysis we are going to look at the following topics:    
 
-**Part I**   
+**Part I:**
 
 1. Beer price and its consumption 
 2. Hendl price and its consumption
 
-**Part II**   
+**Part II:**   
 
 3. Influence of the ZLF on some variables in our data
 4. Mean daily visitor count before and after 9/11
 
-We will use visualizations and simple modeling techniques to describe the data. Further we are
+We are going to use visualizations and simple modeling techniques to describe the data. Further we are
 going to perform statistical tests to compare means in groups.
 
 ## Beer price and consumption
@@ -244,7 +247,7 @@ summary(fit_euro)
 
 
 * In years with DM currency (`r min(dt$year)` to 2001) the estimated yearly price increase 
-was about **`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
+was around **`r round(coefficients(fit_dm)[2], 2)` Cents per year**.
 * In the years after the Euro has been introduced (>2001), the estimated yearly price increase was 
 **`r round(coefficients(fit_euro)[2], 2)` Cents per year**.   
 
@@ -293,7 +296,7 @@ Now that we confirmed that the price increased over the years, the next question
 
 **Did this increase have a negative influence on mean beer consumption per visitor?**
 
-In order to answer this question we will start with a visualization of our data:
+In order to answer this question we are going to start with a visualization of our data:
 
 
 ```{r, echo = F, fig.align = "center"}
@@ -340,9 +343,10 @@ correlation coefficient:
 cor.test(dt$beer_cons_per_visitor, dt$beer_price)
 ```
 
-The test suggest a true correlation of `r round(cor(dt$beer_cons_per_visitor, dt$beer_price),2)`.
+The test suggest a true correlation with a Pearson correlation coefficient of 
+`r round(cor(dt$beer_cons_per_visitor, dt$beer_price),2)`.
 The p-value is way below 0.05 and we have a narrow confidence interval.
-If we plot the data, all points seem to be on around one line:
+If we plot the data, all points seem to be around one line:
 
 ```{r, echo = F, fig.align = "center"}
 cor.coef <- round(with(dt, cor(beer_cons_per_visitor, beer_price)), 2)
@@ -372,10 +376,10 @@ Nevertheless, in my opinion, this is an example that **correlation does not impl
 I think that the increased consumption is a separate phenomena and not caused by increased prices.
 One reason you can think of might be:   
 
-* Oktoberfest gets more and more popular outside of Munich. People from all over the world go 
-there in order to drink a "Maß" beer. For people coming from Australia, Sweden,
-etc. the beer is still cheap compared to their home and they come to have a great time and a lot of
-"Maß" beer.
+* Oktoberfest gets more and more popular outside of Munich. More and more people from all over the
+world go there in order to drink a "Maß" beer. For people coming from Australia, Sweden,
+etc. the beer is still cheap compared to their home. That is why they do not consume less beer with
+increasing prices since it is still cheap for them.  
 
 In conclusion the data set suggests that **the price does not 
 seem to have a negative influence on mean beer consumption per visitor**.
@@ -388,7 +392,7 @@ to eat besides their beer. So what about the hendl consumption and price develop
 
 ### Modeling hendl price development
 
-As before we will first have a look at the price only:
+As before we are going to have a look at the price only first:
 
 
 *Important Notes*:
@@ -458,8 +462,8 @@ dt %>%
 
 
 Above we saw that the beer price did not have a negative influence on the beer consumption.
-We will ask the same question concerning the hendl price and consumption. To get a first overview,
-we will plot the data.
+We are going to ask the same question for the hendl price and consumption. 
+To get a first overview, we plot the data.
 
 ```{r, echo = F, fig.align = "center"}
 p1 <- dt %>% 
@@ -555,11 +559,11 @@ specific price margin with the following hypothesis:
 Normally people would buy a hendl up to their specific price boundary. That would mean a steady
 decrease in consumption with increasing price.   
 
-Nevertheless their are a lot of companies, which rent a table in a tent and invite their employees
+Nevertheless there are a lot of companies, which rent a table in a tent and invite their employees
 to come. Most of the time these companies give a free amount of hendl and beer consumption to their
 employees. I think that a big company's price sensitivity concerning hendl and beer is **not** as 
-high as the price sensitivity of a normal Oktoberfest visitor. Thus, even with increasing prices the basic 
-level of consumption does not change a lot.   
+high as the price sensitivity of a normal Oktoberfest visitor. Thus, even with increasing prices 
+the basic level of consumption does not change a lot.   
 
 
 # Conclusion
@@ -589,8 +593,8 @@ In the next part of our analysis we will have a closer look on the influence of 
 
 # Acknowledgement
 
-For this part I want to say thank you to the people who supported me with ressources for that analysis.
+For this part I want to say thank you to the people who supported me with resources for that analysis.
 Great thanks goes to *Frank Börger* and the team from Munich Open Data for answering my questions
-on the data and providing additional ressources.
+on the data and providing additional resources.
 
 
