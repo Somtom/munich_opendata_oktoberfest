@@ -8,8 +8,6 @@ output:
   pdf_document: default
 ---
 
-
-
 ![By Bayreuth2009 [GFDL](http://www.gnu.org/copyleft/fdl.html); [CC BY 3.0](https://creativecommons.org/licenses/by/3.0), from Wikimedia Commons](https://upload.wikimedia.org/wikipedia/commons/a/ab/M%C3%BCnchen%2C_Sch%C3%BCtzen-Festzelt%2C_Oktoberfest_2012_%2801%29.jpg)
 
 # Introduction
@@ -594,9 +592,9 @@ In the next part of our analysis we will have a closer look on the influence of 
 
 # Acknowledgement
 
-For this part I want to say thank you to the people who supported me with resources for that analysis.
-Great thanks goes to *Frank Börger* and the team from Munich Open Data for answering my questions
-on the data and providing additional resources. Another great thank you goes to my friend Pat for
-proofreading.
+For this part I would like to say thank you to the people who helped me with the ressources for that
+analysis.I would like to thank Frank Börger and the team from Munich Open Data for answering my
+questions on the data and providing additional resources. 
+Another great thank you goes to my friend Pat forproofreading.
 
 

@@ -1,9 +1,10 @@
 ---
-title: Oktoberfest Analysis Part II
-author: Thomas Schmidt
+title: "Oktoberfest Analysis Part II"
+author: "Thomas Schmidt"
 date: '2018-04-22'
-  
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 
@@ -124,7 +125,7 @@ dt <- dt %>%
 
 ## Bavarian Central Agricultural Festival (ZLF)
 
-The ZLF is an agricultural exhibition which takes place in parallel to the Oktoberfest at the
+The ZLF is an agricultural exhibition which takes place right next to the Oktoberfest at the
 Theresienwiese. Before 1996 the exhibition was held every three years. From there on it has been taken
 place every 4 years.   
 
@@ -170,8 +171,8 @@ before the start of the Oktoberfest.
 Two other big drops compared to the previous year can
 be found in 1988 and 2016. For 2016 one could also argue that this drop is due to the shooting in
 Munich on July 22nd in the same year and because of the general fear of terror attacks. 
-Actually my research did not find any reasons for the drop in 1988. Even the weather had been good
-around the Oktoberfest in that year.   
+Actually my research did not find any reasons for the drop in 1988. Even the weather was good
+during the Oktoberfest in that year.   
 
 
 Looking at years the ZLF took place, we can not tell whether the total visitor count is greater 
@@ -196,8 +197,8 @@ dt %>%
   my_theme
 ```
 
-It looks like both box plots are quiet similar. The median of ZLF years is a sligthly higher.
-Nevertheless we need to be careful since we do have fewer data points for ZLF years than for normal
+It looks like both box plots are quiet similar. The median of ZLF years is sligthly higher.
+Nevertheless we need to be careful, as we have fewer data points for ZLF years than we do for normal
 years.   
 
 We will continue with testing the null hypothesis:   
@@ -298,7 +299,7 @@ dt %>%
   my_theme
 ```
 
-Both box plots look similar again but the ZLF year data is some kind of splitted. 
+Both box plots look similar again but the ZLF year data seems to be split. 
 We now start with a test for normal distribution and 
 continue with a proper statistical comparison test:
 
@@ -313,7 +314,7 @@ shapiro.test(dt[dt$zlf == 0,]$beer_cons_per_visitor)
 The outcome of the Shapiro-Wilk test again suggests that both groups have normal distributed values.
 Nevertheless the p-value is way smaller than before.
 
-The quantile-quantile plot shows us why: The higher quantiles run of the line quite a bit.
+The quantile-quantile plot shows us why: The lower and higher quantiles don't fit the line well.
 
 ```{r, echo = F, fig.align = "center"}
 # create plot
@@ -413,7 +414,7 @@ par(mfrow = c(1,1))
 ```
 
 
-This time the test for normal distribution suggests that at least the normal year data are not normally
+This time the test for normal distribution suggests that at least the normal year data is not normally
 distributed. That means we definitely need a non parametric test to compare the group means.
 
 
@@ -450,7 +451,7 @@ dt %>%
 ```
 
 
-The boxplots show that the distribution of mean daily visitor count before and after 9/11 varies.
+The boxplots show the distribution of mean daily visitor count before and after 9/11 varies.
 Let's see what the comparison tests suggest:
 
 
@@ -490,9 +491,10 @@ increase the beer or hendl consumption**
 
 # Acknowledgement
 
-Finnaly I want to say thank you to the people who supported me with ressources for that analysis.
-Great thanks goes to *Frank Börger* and the team from Munich Open Data for answering my questions
-on the data and providing additional ressources.
+For this part I would like to say thank you to the people who helped me with the ressources for that
+analysis.I would like to thank Frank Börger and the team from Munich Open Data for answering my
+questions on the data and providing additional resources. 
+Another great thank you goes to my friend Pat forproofreading.
 
 
 
